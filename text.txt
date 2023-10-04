@@ -1,0 +1,73 @@
+$sql = "SELECT candidate_id,
+               SUM(voters_option = 'Yes') AS yes_votes,
+               SUM(voters_option = 'No') AS no_votes,
+               SUM(voters_option = 'Neutral') AS neutral_votes,
+               SUM(voters_option = 'None') AS nota_votes
+        FROM voting
+        WHERE election_id = $election_id
+        GROUP BY candidate_id";
+
+$result = $db->query($sql);
+
+// Step 3: Process the results and determine the election outcome
+
+        if ($result->num_rows > 0) {
+            $candidates = array();
+            while ($row = $result->fetch_assoc()) {
+                $candidate_id = $row["candidate_id"];
+                $candidate_name = "Candidate " . $candidate_id; // Replace with the actual candidate names from your database
+                $yes_votes = $row["yes_votes"];
+                $no_votes = $row["no_votes"];
+                $neutral_votes = $row["neutral_votes"];
+                $nota_votes = $row["nota_votes"];
+                
+                // Add the candidate details to an array for further processing
+                $candidates[] = array(
+                    "candidate_id" => $candidate_id,
+                    "candidate_name" => $candidate_name,
+                    "yes_votes" => $yes_votes,
+                    "no_votes" => $no_votes,
+                    "neutral_votes" => $neutral_votes,
+                    "nota_votes" => $nota_votes
+                );
+            }
+        
+            // Sort the candidates based on the number of 'Yes' votes in descending order
+            usort($candidates, function ($a, $b) {
+                if ($a["yes_votes"] === $b["yes_votes"]) {
+                    // If two candidates have the same number of 'Yes' votes, sort based on 'No' votes in ascending order
+                    return $a["no_votes"] - $b["no_votes"];
+                }
+                return $b["yes_votes"] - $a["yes_votes"];
+            });
+        
+            // Determine the winner(s) and election outcome
+            $total_candidates = count($candidates);
+            foreach ($candidates as $index => $candidate) {
+                $candidate_name = $candidate["candidate_name"];
+                $yes_votes = $candidate["yes_votes"];
+                $no_votes = $candidate["no_votes"];
+                $neutral_votes = $candidate["neutral_votes"];
+                $nota_votes = $candidate["nota_votes"];
+        
+                // If only one candidate, and the candidate has less 'Yes' votes than 'No' votes,
+                // add the 'Neutral' votes to 'Yes' votes and check if it exceeds the count of 'No' votes.
+                // Decide the result accordingly.
+                if ($total_candidates === 1 && $yes_votes < $no_votes) {
+                    $yes_votes += $neutral_votes;
+                    if ($yes_votes > $no_votes) {
+                        $result = "Elected";
+                    } else {
+                        $result = "Not Elected";
+                    }
+                } else {
+                    // If multiple candidates, the candidate with the most 'Yes' votes is the winner
+                    $result = ($index === 0) ? "Elected" : "Not Elected";
+                }
+        
+                // Display the results in the table format
+               
+            }
+        } else {
+            $results_table .= "<tr><td colspan='6'>No candidates found for this election.</td></tr>";
+        }
